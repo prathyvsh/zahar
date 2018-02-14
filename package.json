@@ -1,0 +1,11 @@
+{
+  "name": "zahar",
+  "version": "0.0.2",
+  "description": "Javascript view library",
+  "main": "z.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Prabros.",
+  "license": "MIT"
+}
