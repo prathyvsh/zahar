@@ -112,7 +112,7 @@
 
     const css = link => serialize(["link", {rel: "stylesheet", type: "text/css", href: link}]);
 
-    const z = {$, $all, clearChildren, setAttrs, node, serialize, append, render, css};
+    const z = {$, $all, node$, node$all, doc, clearChildren, setAttrs, node, serialize, append, render, css};
 
     const nodejsZ = {serialize, doc, css};
 
