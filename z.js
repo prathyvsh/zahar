@@ -8,7 +8,11 @@
 
     const $ = x => document.querySelector(x);
 
-    const $all = x => document.querySelectorAll(x);
+    const $all = (x) => document.querySelectorAll(x);
+
+    const node$ = (node,x) => node.querySelector(x);
+
+    const node$all = (node,x) => node.querySelectorAll(x);
 
     const clearChildren = el => {
 
