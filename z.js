@@ -6,18 +6,18 @@
 
     const escapeHTML = (str) => str.replace(/[&<>]/g, replaceTag);
 
-    const areAttrs = attrs => (typeof attrs == "object" && !(attrs instanceof Array));
+    const areAttrs = attrs => (typeof attrs == "object" && !Array.isArray(attrs));
 
-    const isContent = content => typeof content == "string" || content instanceof Array;
+    const isContent = content => typeof content == "string" || Array.isArray(contents);
 
     const isTag = (tree) => {
 
 	if(tree instanceof Array) {
 	    
-	    let [tag, maybeAttrs = {}, ...content] = tree;
+	    let [tag, attrs, _] = normalizeTree(tree);
 
 	    /* There needs to be a better way to express this. Use some kind of grammar may be? */
-	    return ((typeof tag == "string") && areAttrs(maybeAttrs) && isContent(content)) || ((typeof tag == "string") && isContent(maybeAttrs));
+	    return ((typeof tag == "string") && areAttrs(attrs));
 
 	} else return false;
 
@@ -38,6 +38,53 @@
 
     };
 
+    const processTag = (tag) => {
+
+	let attrs = {};
+
+	let idStart = tag.indexOf("#"), id = null;
+
+	if(idStart > 0) {
+	    
+	let idEnd = tag.indexOf(".", idStart);
+
+	if(idEnd < 0) idEnd = tag.length;
+
+	id = tag.slice(idStart + 1, idEnd);
+
+	tag = tag.slice(0, idStart) + tag.slice(idEnd);
+
+	}
+
+	let [parsed_tag, ...classes] = tag.split(".");
+
+	Object.assign(attrs, id && {id}, (classes.length > 0) && {class: classes.join(" ")});
+
+	return [parsed_tag, attrs];
+	
+    };
+
+    const normalizeTree = (tree) => {
+
+	let [tag, ...contents] = tree;
+
+	let attrs = {};
+
+	if(areAttrs(contents[0])) {
+
+	    attrs = contents[0];
+	    contents = contents.slice(1);
+	    
+	}
+
+	let [parsed_tag, parsed_attrs] = processTag(tag);
+
+	Object.assign(attrs, parsed_attrs);
+
+	return [parsed_tag, attrs, ...contents];
+	
+    };
+
     const node = (tree = "") => {
 
 	if(typeof tree == "string") {
@@ -46,25 +93,17 @@
 
 	} else if(isTag(tree)) {
 
-	    let [tag, ...contents] = tree;
+	    let [tag, attrs, ...contents] = normalizeTree(tree);
 
 	    let el = document.createElement(tag);
 
-	    let maybeAttrs = contents[0], events = null;
+	    setAttrs(el, attrs);
 
-	    if(areAttrs(maybeAttrs)) {
-		
-		events = maybeAttrs.events;
-
-		delete maybeAttrs.events;
-
-		setAttrs(el, maybeAttrs);
-
-		contents = contents.slice(1);
-
-	    };
+	    let events = attrs.events || {};
 
 	    if(events) Object.entries(events).forEach(([k,v]) => el.addEventListener(k, v));
+
+	    delete attrs.events;
 
 	    contents.forEach(x => el.appendChild(node(x)));
 
@@ -112,19 +151,14 @@
 
     };
 
-    const htmlText = (el, ...contents) => {
+    const htmlText = (tree) => {
 
-	if(!el) throw Error("Please provide a tag");
-	let maybeAttrs = contents[0];
+	let [tag, attrs, ...contents] = normalizeTree(tree);
+
+	if(!tag) throw Error("Please provide a tag");
+
 	let attrsStr = "";
 	
-	if(areAttrs(maybeAttrs)) {
-
-	    attrsStr = attrsToStr(maybeAttrs);
-	    contents = contents.slice(1);
-
-	}
-
 	return `<${el}${(attrsStr) ? " " + attrsStr : ""}>${contents.map(serialize).join("")}</${el}>`;
 
     };
@@ -135,11 +169,9 @@
 
 	    return tree;
 
-	} else if(tree instanceof Array) {
+	} else if(Array.isArray(tree)) {
 	    
-	    let [tag, attrs, ...contents] = tree;
-
-	    return htmlText(tag, attrs, ...contents);
+	    return htmlText(tree);
 	    
 	} else {
 	    
