@@ -1,231 +1,280 @@
 ((global) => {
 
-    const charMap = {'&': '&amp;', '<': '&lt;', '>': '&gt;'};
+	const charMap = {"&": "&amp;", "<": "&lt;", ">": "&gt;"};
 
-    const replaceTag = (tag) => charMap[tag] || tag;
+	const replaceTag = (tag) => charMap[tag] || tag;
 
-    const escapeHTML = (str) => str.replace(/[&<>]/g, replaceTag);
+	const escapeHTML = (str) => str.replace(/[&<>]/g, replaceTag);
 
-    const areAttrs = attrs => (typeof attrs == "object" && !Array.isArray(attrs));
+	/* General helpers */
 
-    const isContent = content => typeof content == "string" || Array.isArray(contents);
+	const identity = (x) => x;
 
-    const isTag = (tree) => {
+	const isArr = (x) => Array.isArray(x);
 
-	if(tree instanceof Array) {
-	    
-	    let [tag, attrs, _] = normalizeTree(tree);
+	const isObj = (x) => !isArr(x) && typeof x == "object";
 
-	    /* There needs to be a better way to express this. Use some kind of grammar may be? */
-	    return ((typeof tag == "string") && areAttrs(attrs));
+	const isScalar = (v) => (typeof v === "string" || typeof v === "boolean" || typeof v === "number");
 
-	} else return false;
+	const areAttrs = (attrs) => isObj(attrs);
 
-    };
+	/* Zahar specific helpers */
 
-    const $ = x => document.querySelector(x);
+	const isNode = (node) => isArr(node) && typeof node[0] == "string";
 
-    const $all = (x) => document.querySelectorAll(x);
+	const isNodeArr = (node) => isArr(node) && isNode(node[0]);
 
-    const node$ = (node,x) => node.querySelector(x);
+	const $ = x => document.querySelector(x);
 
-    const node$all = (node,x) => node.querySelectorAll(x);
+	const $all = (x) => document.querySelectorAll(x);
 
-    const clearChildren = el => {
+	const node$ = (node,x) => node.querySelector(x);
 
-	while(el.hasChildNodes())
-	    el.removeChild(el.lastChild);
+	const node$all = (node,x) => node.querySelectorAll(x);
 
-    };
+	const clearChildren = el => {
 
-    const processTag = (tag) => {
+		while(el.hasChildNodes())
+			el.removeChild(el.lastChild);
 
-	let attrs = {};
-
-	let idStart = tag.indexOf("#"), id = null;
-
-	if(idStart > 0) {
-	    
-	let idEnd = tag.indexOf(".", idStart);
-
-	if(idEnd < 0) idEnd = tag.length;
-
-	id = tag.slice(idStart + 1, idEnd);
-
-	tag = tag.slice(0, idStart) + tag.slice(idEnd);
-
-	}
-
-	let [parsed_tag, ...classes] = tag.split(".");
-
-	Object.assign(attrs, id && {id}, (classes.length > 0) && {class: classes.join(" ")});
-
-	return [parsed_tag, attrs];
-	
-    };
-
-    const normalizeTree = (tree) => {
-
-	let [tag, ...contents] = tree;
-
-	let attrs = {};
-
-	if(areAttrs(contents[0])) {
-
-	    attrs = contents[0];
-	    contents = contents.slice(1);
-	    
-	}
-
-	let [parsed_tag, parsed_attrs] = processTag(tag);
-
-	Object.assign(attrs, parsed_attrs);
-
-	return [parsed_tag, attrs, ...contents];
-	
-    };
-
-    const node = (tree = "") => {
-
-	if(typeof tree == "string") {
-
-	    return document.createTextNode(tree);
-
-	} else if(isTag(tree)) {
-
-	    let [tag, attrs, ...contents] = normalizeTree(tree);
-
-	    let el = document.createElement(tag);
-
-	    setAttrs(el, attrs);
-
-	    let events = attrs.events || {};
-
-	    if(events) Object.entries(events).forEach(([k,v]) => el.addEventListener(k, v));
-
-	    delete attrs.events;
-
-	    contents.forEach(x => el.appendChild(node(x)));
-
-	    return el;
-
-	} else throw Error("Unknown tag passed in");
-
-    };
-
-    /* nodes: tree or trees */
-    const nodes = (trees) => {
-
-	let container = document.createDocumentFragment();
-
-	trees.map(x => container.appendChild(node(x)));
-
-	return container;
-
-    };
-
-    const nodesToFrag = (nodes) => document.createRange().createContextualFragment(nodes);
-    
-    const joinKV = (joiner, transform = (x => x)) => ([k, v]) => k + joiner + transform(v);
-
-    const serializeStyle = s => Object.entries(s).map(joinKV(":")).join(";");
-
-    const setAttrs = (el,attrs = {}) => Object.entries(attrs).map(([k,v]) => {
-
-	if(k == "style") el.setAttribute(k, serializeStyle(v));
-
-	else if(k == "data") Object.entries(v).map(([dataKey, dataVal]) => el.setAttribute(k + "-" + dataKey, dataVal));
-
-	else el.setAttribute(k,v);
-
-    });
-
-    const attrsToStr = attrs => {
-
-	const escapeStr = (st, c) => (typeof st == "string") ? `"${st}"` : st;
-
-	const parseAttrs = ([k, v]) => 
-	      (k == "style") ? `${k}='${serializeStyle(v)}'` : joinKV("=", escapeStr)([k, v]);
-
-	return Object.entries(attrs).map(parseAttrs).join(" ");
-
-    };
-
-    const htmlText = (tree) => {
-
-	let [tag, attrs, ...contents] = normalizeTree(tree);
-
-	if(!tag) throw Error("Please provide a tag");
-
-	let attrsStr = "";
-	
-	return `<${el}${(attrsStr) ? " " + attrsStr : ""}>${contents.map(serialize).join("")}</${el}>`;
-
-    };
-
-    const serialize = (tree = "") => {
-
-	if(typeof tree == "string") {
-
-	    return tree;
-
-	} else if(Array.isArray(tree)) {
-	    
-	    return htmlText(tree);
-	    
-	} else {
-	    
-	    throw Error("Unknown item", tree);
-	    
 	};
 
-    };
+	/* Functions for rendering nodes */
 
-    /* A tree is either: 
-       string
-       [tag: string]
-       [tag: string, attrs: object]
-       [tag: string, tree+]
-       [tag: string, attrs: object, tree+] */
-    let append = (parentNode, tree) => {
+	const escapeStr = st => (typeof st === "string") ? `"${st}"` : st;
 
-	parentNode.appendChild(node(tree));
+	const normalizeAttrs = (attrs) => {
 
-	return parentNode;
+		const { data = {} } = attrs;
 
-    };
+		const dataAttrs = Object.entries(data).reduce((result, [dk, dv]) => Object.assign(result, {["data-" + dk]: dv}), {});
 
-    // Creates HTML DOM from the provided text, clears the parentNode and then appends it on the given parentNode
-    let render = (parentNode, treeOrArr) => {
+		delete attrs.data;
 
-	clearChildren(parentNode);
+		Object.assign(dataAttrs, attrs);
 
-	//Append directly if it's a tree, otherwise it's an array and append each of them
-	return isTag(treeOrArr) ? append(parentNode, treeOrArr) : treeOrArr.forEach(tree => append(parentNode, tree));
+		return dataAttrs;
 
-    };
+	};
+
+	const serializeAttrs = ({attrs, serializer, delimiter}) => {
+
+		return Object.entries(attrs).map(([k,v]) => serializer(k, v)).join(delimiter);
+
+	};
+
+	const serializeStyle = (style) => serializeAttrs({attrs: style, serializer: (k, v) => k + ":" + v, delimiter: ";"});
+
+	const attrsText = attrsMap => {
+
+		const attrs = normalizeAttrs(attrsMap)
+
+		const serializer = (k, join, v) => {
+
+			if(v == null || v === false) return "";
+
+			else if(k === "style") return `${k}='${serializeStyle(v)}'`;
+
+			else if(isScalar(v)) return k + join + escapeStr(v);
+
+			else throw Error("Unknown value inside attributes: " + JSON.stringify(attrsMap));
+
+		}
+
+		return serializeAttrs({attrs, serializer: (k, v) => serializer(k, "=", v), delimiter: " "});
+
+	};
 
 
-    const doc = (head = "",body = "") => {
+	const setAttrs = (el, attrs = {}) => Object.entries(attrs).map(([k,v]) => {
 
-	if(!body) {
-	    body = head;
-	    head = "";
-	}
+		// Sets data
+		attrs = normalizeAttrs(attrs);
 
-	return "<!doctype html>" + serialize(["html", ["head", ...head], ["body", ...body]]);
+		// Don't set attributes when there’s no value present or is set to false
+		// Setting value to false for some DOM elements requires absence of attribute
+		if(v == null || v == false) return;
 
-    };
+		// Set style
+		if(k === "style") { el.setAttribute(k, serializeStyle(v)); }
 
-    const css = link => serialize(["link", {rel: "stylesheet", type: "text/css", href: link}]);
+		else if (isScalar(v)) { el.setAttribute(k,v); }
 
-    const z = {$, $all, node$, node$all, doc, clearChildren, setAttrs, node, serialize, append, render, css};
+		else throw Error("Unknown value inside attributes: " + attrsMap.toString());
 
-    const nodejsZ = {serialize, doc, css, isTag};
+	});
 
-    global.z = z;
+	const processTag = (tag) => {
 
-    if(typeof module !== "undefined" && module.exports)
-	module.exports = nodejsZ;
+		const attrs = {};
+
+		let id = null;
+
+		const idStart = tag.indexOf("#");
+
+		if(idStart > 0) {
+
+			let idEnd = tag.indexOf(".", idStart);
+
+			if(idEnd < 0) idEnd = tag.length;
+
+			id = tag.slice(idStart + 1, idEnd);
+
+			tag = tag.slice(0, idStart) + tag.slice(idEnd);
+
+		}
+
+		let [parsed_tag, ...classes] = tag.split(".");
+
+		Object.assign(attrs, id && {id}, (classes.length > 0) && {class: classes.join(" ")});
+
+		return [parsed_tag, attrs];
+
+	};
+
+	const normalizeNode = (node) => {
+
+		let [tag, ...contents] = node;
+
+		let attrs = {};
+
+		if(areAttrs(contents[0])) {
+
+			attrs = contents[0];
+
+			contents = contents.slice(1);
+
+		}
+
+		let [parsed_tag, parsed_attrs] = processTag(tag);
+
+		Object.assign(attrs, parsed_attrs);
+
+		return [parsed_tag, attrs, ...contents];
+
+	};
+
+	const textToDOM = node => document.createTextNode(node);
+
+	const nodeToDOM = node => {
+
+		let [tag, attrs, ...contents] = normalizeNode(node);
+
+		if(typeof tag !== "string")
+			throw Error("Please provide a valid node to render. You passed: " + node.toString());
+
+		let el = document.createElement(tag);
+
+		const { events = {} } = attrs;
+
+		Object.entries(events).forEach(([k,v]) => el.addEventListener(k, v));
+
+		if(contents == undefined || contents == null)
+			console.warn("You passed in a node with no contents in it: [" + node.toString() + " * No content * ]");
+
+		contents.map(c => el.appendChild(buildDOM(c)));
+
+		delete attrs.events;
+
+		setAttrs(el, attrs);
+
+		return el;
+
+	};
+
+	const nodesToDOM = (nodes) => {
+
+		let container = document.createDocumentFragment();
+
+		let result = nodes.map(x => container.appendChild(x));
+
+		return container;
+
+	};
+
+	const textToFrag = (text) => document.createRange().createContextualFragment(text);
+
+	// A node or an array of nodes can be passed in to this function
+	// Node: [ scalar | [tag, attrs, Node]] | [ Node ]
+	// This is done so that when generating DOM with data
+	// the API forgives on creating [[[[Node]]]] like structures and
+	// renders the data however nested it is.
+	// TODO: I have to evaluate how this decision plays out after
+	// enough experience with the library
+	const walkNode = ({scalarFn = identity, nodeFn = identity, nodesFn = identity, node}) => {
+
+		if (node === undefined || node == null) {
+
+			return scalarFn("");
+
+		} else if (isScalar(node)) return scalarFn(node);
+
+		else if (isNode(node)) return nodeFn(node);
+
+		else if (isNodeArr(node)) return nodesFn(node.map(n => nodeFn(n)));
+
+		else throw Error("Please provide a valid node for parsing. You passed in " + JSON.stringify(node));
+
+	};
+
+	const htmlText = (node) => {
+
+		let [tag, attrs, ...contents] = normalizeNode(node);
+
+		if(!tag) throw Error("Please provide a tag");
+
+		attrs = attrsText(attrs);
+
+		return `<${tag}${attrs}>${contents.map(serialize).join("")}</${tag}>`;
+
+	};
+
+	const buildDOM = (data) => walkNode({scalarFn: textToDOM, nodeFn: nodeToDOM, nodesFn: nodesToDOM, node: data});
+
+	const serialize = (node) => walkNode({scalarFn: escapeHTML, nodeFn: htmlText, nodesFn: nodes => nodes.join(""), node});
+
+	const append = (parentNode, domData) => {
+
+		parentNode.appendChild(buildDOM(domData));
+
+		return parentNode;
+
+	};
+
+	// Creates HTML DOM from the provided text, clears the parentNode and then appends it on the given parentNode
+	const render = (parentNode, domData) => {
+
+		if(typeof parentNode === "string") parentNode = $(parentNode);
+
+		clearChildren(parentNode);
+
+		//Append directly if it's a tree, otherwise it's an array and append each of them
+		return append(parentNode, domData);
+
+	};
+
+	const doc = (head = "",body = "") => {
+
+		if(!body) {
+
+			body = head;
+
+			head = "";
+
+		}
+
+		return "<!doctype html>" + serialize(["html", ["head", ...head], ["body", ...body]]);
+
+	};
+
+	const css = link => serialize(["link", {rel: "stylesheet", type: "text/css", href: link}]);
+
+	const z = {$, $all, node$, node$all, clearChildren, setAttrs, nodeToDOM, textToFrag, serialize, append, render};
+
+	const nodejsZ = { isNode, serialize, doc, css };
+
+	global.z = z;
+
+	if(typeof module !== "undefined" && module.exports) module.exports = nodejsZ;
 
 })(this);
