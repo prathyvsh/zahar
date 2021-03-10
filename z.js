@@ -85,11 +85,7 @@
 
 	};
 
-
-	const setAttrs = (el, attrs = {}) => Object.entries(attrs).map(([k,v]) => {
-
-		// Sets data
-		attrs = normalizeAttrs(attrs);
+	const setAttrs = (el, attrs = {}) => Object.entries(normalizeAttrs(attrs)).map(([k,v]) => {
 
 		// Don't set attributes when there’s no value present or is set to false
 		// Setting value to false for some DOM elements requires absence of attribute
@@ -100,7 +96,7 @@
 
 		else if (isScalar(v)) { el.setAttribute(k,v); }
 
-		else throw Error("Unknown value inside attributes: " + attrsMap.toString());
+		else throw Error("Unknown value inside attributes: " + JSON.stringify(attrs));
 
 	});
 
